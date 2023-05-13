@@ -9,13 +9,13 @@ import {
 	getActivePickingForUser,
 	updatePicking,
 } from "../db/dbhandler.js";
-import { JwtDecoded } from "../middleware/auth.js";
+import { AuthHandlers, JwtDecoded } from "../middleware/auth.js";
 import { objectValidator } from "../utils.js";
 
-export default function (middleware: express.Handler, adminMiddleware: express.Handler) {
+export default function (authService: AuthHandlers) {
 	const router = express.Router();
 
-	router.get("/work", middleware, async (req, res) => {
+	router.get("/work", authService.middleware, async (req, res) => {
 		try {
 			const pickings = await getActivePickings();
 			const work = pickings.reduce(
@@ -45,7 +45,7 @@ export default function (middleware: express.Handler, adminMiddleware: express.H
 	});
 
 	// GET latest picking
-	router.get("/latest", middleware, async (req, res) => {
+	router.get("/latest", authService.middleware, async (req, res) => {
 		try {
 			const body = req.body as { decoded: JwtDecoded };
 			const userId = body.decoded.id;
@@ -59,7 +59,7 @@ export default function (middleware: express.Handler, adminMiddleware: express.H
 	});
 
 	// picking/1234
-	router.get("/:workerId", adminMiddleware, async (req, res) => {
+	router.get("/:workerId", authService.adminMiddleware, async (req, res) => {
 		try {
 			const id = parseInt(req.params.workerId);
 			const pickings = (await getActivePickingForUser(id)) ?? (await getPickings(id));
@@ -72,17 +72,21 @@ export default function (middleware: express.Handler, adminMiddleware: express.H
 	});
 
 	// POST /picking
-	router.post("/", middleware, async (req, res) => {
+	router.post("/", authService.middleware, async (req, res) => {
 		try {
 			const { workerId, workType } = req.body as { workerId: number; workType: WorkType };
 			objectValidator({ workerId, workType });
 			const picking = await createPicking(workerId, workType);
 			res.json(picking);
-		} catch (error) {}
+		} catch (error) {
+			if (error instanceof Error) {
+				res.status(400).json({ message: error.message });
+			}
+		}
 	});
 
 	// PUT /picking/:id
-	router.put("/:id", middleware, async (req, res) => {
+	router.put("/:id", authService.middleware, async (req, res) => {
 		try {
 			const id = parseInt(req.params.id);
 			const { workType } = req.body as { workType: WorkType };
@@ -91,13 +95,13 @@ export default function (middleware: express.Handler, adminMiddleware: express.H
 			res.json(picking);
 		} catch (error) {
 			if (error instanceof Error) {
-				return res.status(400).send(error.message);
+				res.status(400).json({ message: error.message });
 			}
 		}
 	});
 
 	// DELETE /picking/:id
-	router.delete("/:id", adminMiddleware, async (req, res) => {
+	router.delete("/:id", authService.adminMiddleware, async (req, res) => {
 		try {
 			const id = parseInt(req.params.id);
 			await deletePicking(id);
@@ -106,7 +110,7 @@ export default function (middleware: express.Handler, adminMiddleware: express.H
 			});
 		} catch (error) {
 			if (error instanceof Error) {
-				return res.status(400).send(error.message);
+				res.status(400).json({ message: error.message });
 			}
 		}
 	});

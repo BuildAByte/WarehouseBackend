@@ -1,20 +1,30 @@
 import { default as express } from "express";
 import Picking from "./routes/picking.js";
 import Worker from "./routes/worker.js";
-import { adminMiddleware, middleware } from "./middleware/auth.js";
-import { createWorker } from "./db/dbhandler.js";
+import { AuthService } from "./middleware/auth.js";
+import { createWorker, init } from "./db/dbhandler.js";
 // Create a new express application instance
 const app: express.Application = express();
 
+const SECRET = process.env.ENCRYPTION_KEY ?? "BingoMachine!12345!";
+const authService = new AuthService(SECRET);
+
 app.use(express.json());
-const picking = Picking(middleware, adminMiddleware);
-const worker = Worker(adminMiddleware);
+
+const picking = Picking(authService);
+const worker = Worker(authService);
+
+async function initDb() {
+	await init();
+	console.log("Database initialized");
+}
 
 async function insertAdminUser() {
 	console.log(await createWorker(`SuperSecret!`, `Admin`, true));
 }
 
-insertAdminUser();
+await initDb();
+await insertAdminUser();
 
 app.use("/picking", picking);
 app.use("/worker", worker);

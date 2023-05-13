@@ -1,57 +1,81 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 
-const SECRET = process.env.ENCRYPTION_KEY ?? "BingoMachine!12345!";
-
 export interface JwtDecoded {
 	id: number;
 	admin: boolean;
 	expiresIn: string;
 }
 
-export function signUser(user: JwtDecoded) {
-	return jwt.sign(user, SECRET, {
-		expiresIn: user.expiresIn,
-		algorithm: "HS256",
-	});
+export interface AuthHandlers {
+	isTokenValid(token: string): boolean;
+	middleware(req: Request, res: Response, next: NextFunction): void;
+	adminMiddleware(req: Request, res: Response, next: NextFunction): void;
+	signUser(user: JwtDecoded): string;
 }
 
-export function middleware(req: Request, res: Response, next: NextFunction) {
-	const authHeader = req.headers["authorization"];
-	const token = authHeader && authHeader.split(" ")[1];
+export class AuthService implements AuthHandlers {
+	private readonly SECRET: string;
 
-	if (!token) return res.status(401).send("Access denied");
-
-	try {
-		const decoded = jwt.verify(token, SECRET) as JwtDecoded;
-		console.log(typeof decoded);
-		req.body.decoded = decoded;
-		next();
-		return;
-	} catch (error) {
-		res.status(400).send("Invalid token");
+	constructor(secret: string) {
+		this.SECRET = secret;
+		// bind all methods
+		this.isTokenValid = this.isTokenValid.bind(this);
+		this.middleware = this.middleware.bind(this);
+		this.adminMiddleware = this.adminMiddleware.bind(this);
+		this.signUser = this.signUser.bind(this);
 	}
-}
-
-export async function adminMiddleware(req: Request, res: Response, next: NextFunction) {
-	const authHeader = req.headers["authorization"];
-	const token = authHeader && authHeader.split(" ")[1];
-	console.log(authHeader, token);
-	if (!token) {
-		res.status(401).send("Access denied");
-		return;
+	public isTokenValid(token: string) {
+		try {
+			jwt.verify(token, this.SECRET) as JwtDecoded;
+			return true;
+		} catch (error) {
+			return false;
+		}
 	}
-	// decode the token and check if the user is admin
-	try {
-		const decoded = jwt.verify(token, SECRET) as JwtDecoded;
-		console.log(decoded);
-		if (decoded.admin) {
+
+	public middleware(req: Request, res: Response, next: NextFunction) {
+		const authHeader = req.headers["authorization"];
+		const token = authHeader && authHeader.split(" ")[1];
+
+		if (!token) return res.status(401).json({ message: "Access denied" });
+
+		try {
+			const decoded = jwt.verify(token, this.SECRET) as JwtDecoded;
 			req.body.decoded = decoded;
 			next();
-		} else {
-			res.status(401).send("Access denied");
+			return;
+		} catch (error) {
+			res.status(400).json({ message: "Invalid token" });
 		}
-	} catch (error) {
-		res.status(400).send("Invalid token");
+	}
+
+	public adminMiddleware(req: Request, res: Response, next: NextFunction) {
+		const authHeader = req.headers["authorization"];
+		const token = authHeader && authHeader.split(" ")[1];
+
+		if (!token) {
+			res.status(401).json({ message: "Access denied" });
+			return;
+		}
+		// decode the token and check if the user is admin
+		try {
+			const decoded = jwt.verify(token, this.SECRET) as JwtDecoded;
+			if (decoded.admin) {
+				req.body.decoded = decoded;
+				next();
+			} else {
+				res.status(401).json({ message: "Access denied" });
+			}
+		} catch (error) {
+			res.status(400).json({ message: "Invalid token" });
+		}
+	}
+
+	public signUser(user: JwtDecoded) {
+		return jwt.sign(user, this.SECRET, {
+			expiresIn: user.expiresIn,
+			algorithm: "HS256",
+		});
 	}
 }

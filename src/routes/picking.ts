@@ -62,7 +62,7 @@ export default function (authService: AuthHandlers) {
 	router.get("/:workerId", authService.adminMiddleware, async (req, res) => {
 		try {
 			const id = parseInt(req.params.workerId);
-			const pickings = (await getActivePickingForUser(id)) ?? (await getPickings(id));
+			const pickings = await getPickings(id);
 			res.json(pickings);
 		} catch (error) {
 			if (error instanceof Error) {
@@ -74,9 +74,10 @@ export default function (authService: AuthHandlers) {
 	// POST /picking
 	router.post("/", authService.middleware, async (req, res) => {
 		try {
-			const { workerId, workType } = req.body as { workerId: number; workType: WorkType };
-			objectValidator({ workerId, workType });
-			const picking = await createPicking(workerId, workType);
+			const userId = (req.body as { decoded: JwtDecoded }).decoded.id;
+			const { workType } = req.body as { workerId: number; workType: WorkType };
+			objectValidator({ workType });
+			const picking = await createPicking(userId, workType);
 			res.json(picking);
 		} catch (error) {
 			if (error instanceof Error) {

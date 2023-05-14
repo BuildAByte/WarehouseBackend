@@ -90,8 +90,6 @@ export default function (authService: AuthHandlers) {
 	router.put("/:id", authService.middleware, async (req, res) => {
 		try {
 			const id = parseInt(req.params.id);
-			const { workType } = req.body as { workType: WorkType };
-			objectValidator({ workType });
 			const picking = await updatePicking(id, new Date());
 			res.json(picking);
 		} catch (error) {

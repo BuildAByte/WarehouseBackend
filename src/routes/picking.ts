@@ -20,9 +20,9 @@ export default function (authService: AuthHandlers) {
 			const pickings = await getActivePickings();
 			const work = pickings.reduce(
 				(acc, curr) => {
-					if (curr.work_type === WorkType.picking) {
+					if (curr.work_type === WorkType.PICKING) {
 						acc.picking += 1;
-					} else if (curr.work_type === WorkType.packing) {
+					} else if (curr.work_type === WorkType.PACKING) {
 						acc.packing += 1;
 					}
 					return acc;
@@ -31,10 +31,10 @@ export default function (authService: AuthHandlers) {
 			);
 			const workTypes: WorkType[] = [];
 			if (work.picking < 3) {
-				workTypes.push(WorkType.picking);
+				workTypes.push(WorkType.PICKING);
 			}
 			if (work.packing < 6) {
-				workTypes.push(WorkType.packing);
+				workTypes.push(WorkType.PACKING);
 			}
 			res.json(workTypes);
 		} catch (error) {

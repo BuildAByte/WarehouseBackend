@@ -11,13 +11,9 @@ interface Worker {
 }
 
 export enum WorkType {
-	"picking",
-	"packing",
-	"labelling",
-	"liquid production",
-	"preparation",
-	"checking",
-	"restocking",
+	PICKING = "picking",
+	PACKING = "packing",
+	LABELLING = "labelling",
 }
 
 interface Picking {

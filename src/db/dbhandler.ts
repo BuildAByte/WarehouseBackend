@@ -110,7 +110,7 @@ export async function createWorker(password: string, name: string, isAdmin = fal
 }
 
 export async function generatePassword(password: string) {
-	const salt = await bcrypt.genSalt(16);
+	const salt = await bcrypt.genSalt(8);
 	return await bcrypt.hash(password, salt);
 }
 

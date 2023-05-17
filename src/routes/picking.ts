@@ -45,11 +45,11 @@ export default function (authService: AuthHandlers) {
 	});
 
 	// GET latest picking
-	router.get("/latest", authService.middleware, async (req, res) => {
+	router.get("/active", authService.middleware, async (req, res) => {
 		try {
 			const body = req.body as { decoded: JwtDecoded };
 			const userId = body.decoded.id;
-			const picking = (await getActivePickingForUser(userId)) ?? [await getLatestPicking(userId)];
+			const picking = await getActivePickingForUser(userId);
 			res.json(picking);
 		} catch (error) {
 			if (error instanceof Error) {

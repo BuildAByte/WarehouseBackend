@@ -15,6 +15,19 @@ import { objectValidator } from "../utils.js";
 export default function (authService: AuthHandlers) {
 	const router = express.Router();
 
+	// GET /picking
+	router.get("/", authService.middleware, async (req, res) => {
+		const userId = (req.body as { decoded: JwtDecoded }).decoded.id;
+		try {
+			const pickings = await getLatestPicking(userId);
+			res.json(pickings);
+		} catch (error) {
+			if (error instanceof Error) {
+				res.status(500).send(error.message);
+			}
+		}
+	});
+
 	router.get("/work", authService.middleware, async (req, res) => {
 		try {
 			const pickings = await getActivePickings();

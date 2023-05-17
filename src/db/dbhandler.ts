@@ -116,7 +116,14 @@ export async function generatePassword(password: string) {
 
 export async function updateWorker(id: number, worker: Nullable<Worker>): Promise<Worker> {
 	const client = await connection.connect();
-	const result = await client.query("UPDATE workers SET name = $1 WHERE id = $2 RETURNING *", [worker.name, id]);
+	const { password } = worker;
+	if (password) {
+		worker.password = await generatePassword(password);
+	}
+	const result = await client.query(
+		`UPDATE workers SET name = $1 ${password ? `, password = $3` : ``} WHERE id = $2 RETURNING *`,
+		[worker.name, id, worker.password],
+	);
 	client.release();
 	const returnedWorker = result.rows[0] as Worker;
 	delete returnedWorker.password;

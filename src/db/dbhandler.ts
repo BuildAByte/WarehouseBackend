@@ -41,7 +41,7 @@ export async function getLatestPicking(id: number): Promise<Picking | undefined>
 
 export async function getWorkers(): Promise<Worker[]> {
 	const client = await connection.connect();
-	const result = await client.query("SELECT * FROM workers where name != 'admin'");
+	const result = await client.query("SELECT * FROM workers where name != 'Admin'");
 	client.release();
 	const workers = result.rows as Worker[];
 	return workers.map((worker) => {

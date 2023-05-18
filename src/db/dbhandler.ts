@@ -120,10 +120,7 @@ export async function updateWorker(id: number, worker: Nullable<Worker>): Promis
 	if (password) {
 		worker.password = await generatePassword(password);
 	}
-	const result = await client.query(
-		`UPDATE workers SET name = $1 ${password ? `, password = $3` : ``} WHERE id = $2 RETURNING *`,
-		[worker.name, id, worker.password],
-	);
+	const result = await client.query(`UPDATE workers SET name = $1 WHERE id = $2 RETURNING *`, [worker.name, id]);
 	client.release();
 	const returnedWorker = result.rows[0] as Worker;
 	delete returnedWorker.password;

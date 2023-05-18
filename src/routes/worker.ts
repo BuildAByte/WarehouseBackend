@@ -79,9 +79,7 @@ export default function (authService: AuthHandlers) {
 		try {
 			const id = parseInt(req.params.id);
 			const body = req.body as { password: string; name: string };
-			const worker = await getWorker(id);
-			const changes = { ...worker, ...body };
-			const newWorker = await updateWorker(id, changes);
+			const newWorker = await updateWorker(id, body);
 			res.json(newWorker);
 		} catch (error) {
 			if (error instanceof Error) {

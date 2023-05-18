@@ -170,6 +170,13 @@ export async function getPickings(id: number): Promise<Picking[]> {
 	return result.rows as Picking[];
 }
 
+export async function getAllPickings(): Promise<Picking[]> {
+	const client = await connection.connect();
+	const result = await client.query("SELECT * FROM picking");
+	client.release();
+	return result.rows as Picking[];
+}
+
 type Nullable<T> = {
 	[P in keyof T]?: T[P];
 };

@@ -8,12 +8,37 @@ import {
 	getPickings,
 	getActivePickingForUser,
 	updatePicking,
+	getAllPickings,
 } from "../db/dbhandler.js";
 import { AuthHandlers, JwtDecoded } from "../middleware/auth.js";
 import { objectValidator } from "../utils.js";
 
 export default function (authService: AuthHandlers) {
 	const router = express.Router();
+
+	router.get("/all", authService.adminMiddleware, async (req, res) => {
+		try {
+			const pickings = await getAllPickings();
+			res.json(pickings);
+		} catch (error) {
+			if (error instanceof Error) {
+				res.status(500).json({ message: error.message });
+			}
+		}
+	});
+
+	router.post("/assign", authService.adminMiddleware, async (req, res) => {
+		try {
+			const { worker_id, work_type } = req.body;
+			objectValidator({ worker_id, work_type });
+			const picking = await createPicking(worker_id, work_type);
+			res.json(picking);
+		} catch (error) {
+			if (error instanceof Error) {
+				res.status(500).json({ message: error.message });
+			}
+		}
+	});
 
 	// GET /picking
 	router.get("/", authService.middleware, async (req, res) => {

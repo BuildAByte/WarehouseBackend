@@ -44,7 +44,7 @@ export default function (authService: AuthHandlers) {
 	router.get("/", authService.middleware, async (req, res) => {
 		const userId = (req.body as { decoded: JwtDecoded }).decoded.id;
 		try {
-			const pickings = await getLatestPicking(userId);
+			const pickings = await getPickings(userId);
 			res.json(pickings);
 		} catch (error) {
 			if (error instanceof Error) {

@@ -162,7 +162,7 @@ export async function deletePicking(id: number): Promise<void> {
 // get pickings for user
 export async function getPickings(id: number): Promise<Picking[]> {
 	const client = await connection.connect();
-	const result = await client.query("SELECT * FROM picking WHERE worker_id = $1", [id]);
+	const result = await client.query("SELECT * FROM picking WHERE worker_id = $1 ORDER BY id DESC", [id]);
 	client.release();
 	return result.rows as Picking[];
 }

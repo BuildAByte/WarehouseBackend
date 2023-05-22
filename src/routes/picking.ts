@@ -28,7 +28,7 @@ export default function (authService: AuthHandlers) {
 			const parsedPickings: Array<PickingParsed> = pickings.map((picking) => {
 				return {
 					...picking,
-					end_timestamp: new Date(picking.end_timestamp),
+					end_timestamp: new Date(picking.end_timestamp ?? picking.start_timestamp),
 					start_timestamp: new Date(picking.start_timestamp),
 				};
 			});

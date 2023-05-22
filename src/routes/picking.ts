@@ -29,9 +29,9 @@ export default function (authService: AuthHandlers) {
 
 	router.post("/assign", authService.adminMiddleware, async (req, res) => {
 		try {
-			const { worker_id, work_type } = req.body;
-			objectValidator({ worker_id, work_type });
-			const picking = await createPicking(worker_id, work_type);
+			const { workerId, workType } = req.body;
+			objectValidator({ workerId, workType });
+			const picking = await createPicking(workerId, workType);
 			res.json(picking);
 		} catch (error) {
 			if (error instanceof Error) {

@@ -45,7 +45,7 @@ export default function (authService: AuthHandlers) {
 			const workersWithTime = workers.map((worker) => {
 				return {
 					...worker,
-					time: idToTimeSpent[worker.id] / Milliseconds.HOUR,
+					time: (idToTimeSpent[worker.id] / Milliseconds.HOUR).toFixed(2),
 				};
 			});
 			res.json(workersWithTime);

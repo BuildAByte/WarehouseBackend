@@ -9,12 +9,52 @@ import {
 	getActivePickingForUser,
 	updatePicking,
 	getAllPickings,
+	PickingParsed,
+	getWorkers,
+	Milliseconds,
 } from "../db/dbhandler.js";
 import { AuthHandlers, JwtDecoded } from "../middleware/auth.js";
 import { objectValidator } from "../utils.js";
 
 export default function (authService: AuthHandlers) {
 	const router = express.Router();
+
+	// calculate how much time each worker has worked based on the pickings
+	router.get("/time", authService.adminMiddleware, async (req, res) => {
+		try {
+			const pickings = await getAllPickings();
+			// parse end_timestamp and start_timestamp into dates
+
+			const parsedPickings: Array<PickingParsed> = pickings.map((picking) => {
+				return {
+					...picking,
+					end_timestamp: new Date(picking.end_timestamp),
+					start_timestamp: new Date(picking.start_timestamp),
+				};
+			});
+
+			const idToTimeSpent = parsedPickings.reduce((acc, curr) => {
+				if (acc[curr.worker_id]) {
+					acc[curr.worker_id] += curr.end_timestamp.getTime() - curr.start_timestamp.getTime();
+				} else {
+					acc[curr.worker_id] = curr.end_timestamp.getTime() - curr.start_timestamp.getTime();
+				}
+				return acc;
+			}, {} as { [key: number]: number });
+			const workers = await getWorkers();
+			const workersWithTime = workers.map((worker) => {
+				return {
+					...worker,
+					time: idToTimeSpent[worker.id] / Milliseconds.HOUR,
+				};
+			});
+			res.json(workersWithTime);
+		} catch (error) {
+			if (error instanceof Error) {
+				res.status(500).json({ message: error.message });
+			}
+		}
+	});
 
 	router.get("/all", authService.adminMiddleware, async (req, res) => {
 		try {

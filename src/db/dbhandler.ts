@@ -3,6 +3,14 @@ import connection from "./dbconnection.js";
 import bcrypt from "bcrypt";
 import path from "path";
 
+export enum Milliseconds {
+	SECOND = 1000,
+	MINUTE = 60 * SECOND,
+	HOUR = 60 * MINUTE,
+	DAY = 24 * HOUR,
+	MONTH = 30 * DAY,
+}
+
 interface Worker {
 	id: number;
 	password?: string;
@@ -22,6 +30,14 @@ interface Picking {
 	work_type: WorkType;
 	start_timestamp: string;
 	end_timestamp: string;
+}
+
+export interface PickingParsed {
+	id: number;
+	worker_id: number;
+	work_type: WorkType;
+	start_timestamp: Date;
+	end_timestamp: Date;
 }
 
 export async function init() {
@@ -167,9 +183,11 @@ export async function getPickings(id: number): Promise<Picking[]> {
 	return result.rows as Picking[];
 }
 
-export async function getAllPickings(): Promise<Picking[]> {
+export async function getAllPickings(fromDate = new Date(Date.now() - Milliseconds.MONTH)): Promise<Picking[]> {
 	const client = await connection.connect();
-	const result = await client.query("SELECT * FROM picking");
+	const result = await client.query("SELECT * FROM picking WHERE start_timestamp > $1 ORDER BY id DESC", [
+		fromDate.toISOString(),
+	]);
 	client.release();
 	return result.rows as Picking[];
 }

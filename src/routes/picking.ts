@@ -48,12 +48,16 @@ export default function (authService: AuthHandlers) {
 	router.get("/csv", authService.adminMiddleware, async (req, res) => {
 		try {
 			const pickings = await getAllPickings();
+			const workers = await getWorkers();
 			const csv = pickings.map((picking) => {
-				const { id, worker_id, work_type, start_timestamp, end_timestamp } = picking;
-				return `${id},${worker_id},${work_type},${start_timestamp},${end_timestamp}`;
+				const worker = workers.find((worker) => worker.id === picking.worker_id);
+				if (!worker) throw new Error("Worker not found");
+				const { id, work_type, start_timestamp, end_timestamp } = picking;
+				const { name } = worker;
+				return `${id},${name},${work_type},${start_timestamp},${end_timestamp}`;
 			});
 			// insert the titles at the start of csv
-			csv.unshift(Object.keys(pickings[0]).join(","));
+			csv.unshift("id,name,work_type,start_timestamp,end_timestamp");
 			res.setHeader("Content-Type", "text/csv");
 			res.attachment("pickings.csv");
 			res.send(csv.join("\n"));

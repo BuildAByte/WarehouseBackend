@@ -70,7 +70,7 @@ export default function (authService: AuthHandlers) {
 					throw new Error(`Worker with id ${worker_id} not found`);
 				}
 				const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
-				usersMappedToWorkType[worker.name][work_type] += timeSpent;
+				usersMappedToWorkType[worker.name][work_type] += parseFloat(timeSpent.toFixed(1));
 			}
 
 			res.json(usersMappedToWorkType);

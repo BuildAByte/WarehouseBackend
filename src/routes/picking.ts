@@ -118,14 +118,13 @@ export default function (authService: AuthHandlers) {
 	router.get("/work", authService.middleware, async (req, res) => {
 		try {
 			const pickings = await getActivePickings();
-			const work = pickings.reduce((acc, curr) => {
-				if (acc[curr.work_type]) {
+			const work = pickings.reduce(
+				(acc, curr) => {
 					acc[curr.work_type] += 1;
-				} else {
-					acc[curr.work_type] = 0;
-				}
-				return acc;
-			}, {} as Record<WorkType, number>);
+					return acc;
+				},
+				{ ...BASE_WORK_TYPE_OBJECT },
+			);
 			const workTypes: WorkType[] = [];
 			for (const workType in work) {
 				const index = workType as WorkType;

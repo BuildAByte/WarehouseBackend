@@ -44,6 +44,24 @@ type WorkerToWorkTypeMapped = Record<string, WorkTypesToTimeSpent>;
 export default function (authService: AuthHandlers) {
 	const router = express.Router();
 
+	// create a route that returns a csv file of all the pickings
+	router.get("/csv", authService.adminMiddleware, async (req, res) => {
+		try {
+			const pickings = await getAllPickings();
+			const csv = pickings.map((picking) => {
+				const { id, worker_id, work_type, start_timestamp, end_timestamp } = picking;
+				return `${id},${worker_id},${work_type},${start_timestamp},${end_timestamp}`;
+			});
+			// insert the titles at the start of csv
+			csv.unshift(Object.keys(pickings[0]).join(","));
+			res.setHeader("Content-Type", "text/csv");
+			res.attachment("pickings.csv");
+			res.send(csv.join("\n"));
+		} catch (error) {
+			console.error(error);
+		}
+	});
+
 	// calculate how much time each worker has worked based on the pickings
 	router.get("/time", authService.adminMiddleware, async (req, res) => {
 		try {
@@ -59,10 +77,12 @@ export default function (authService: AuthHandlers) {
 			});
 
 			const workers = await getWorkers();
+
 			const usersMappedToWorkType: WorkerToWorkTypeMapped = workers.reduce((acc, curr) => {
 				acc[curr.name] = { ...BASE_WORK_TYPE_OBJECT };
 				return acc;
 			}, {} as WorkerToWorkTypeMapped);
+
 			for (const picking of parsedPickings) {
 				const { end_timestamp, start_timestamp, work_type, worker_id } = picking;
 				const worker = workers.find((worker) => worker.id === worker_id);

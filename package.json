@@ -7,6 +7,8 @@
   "scripts": {
     "tsc:init": "tsc --init",
     "tsc": "tsc",
+    "tsc:watch": "tsc -w",
+    "dev": "nodemon dist/server.js",
     "start": "node dist/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -21,6 +23,7 @@
     "@types/jsonwebtoken": "^9.0.2",
     "@types/node": "^18.16.3",
     "@types/pg": "^8.6.6",
+    "nodemon": "^2.0.22",
     "typescript": "^5.0.4"
   },
   "dependencies": {

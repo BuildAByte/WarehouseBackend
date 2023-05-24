@@ -1,7 +1,4 @@
-DROP TABLE IF EXISTS picking;
-DROP TABLE IF EXISTS workers;
-
-CREATE TABLE workers(
+CREATE TABLE IF NOT EXISTS workers(
     id SERIAL NOT NULL,
     password VARCHAR(100) NOT NULL,
     name VARCHAR(100) NOT NULL,
@@ -9,21 +6,22 @@ CREATE TABLE workers(
     PRIMARY KEY (id)
 );
 
-DROP TYPE IF EXISTS work_type;
+DO $$ BEGIN
+    CREATE TYPE work_type AS ENUM (
+        'picking',
+        'packing',
+        'labelling',
+        'liquid production',
+        'preparation',
+        'checking',
+        'restocking',
+        'sub division'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE TYPE work_type AS ENUM (
-    'picking',
-    'packing',
-    'labelling',
-    'liquid production',
-    'preparation',
-    'checking',
-    'restocking',
-    'sub division'
-
-);
-
-CREATE TABLE picking(
+CREATE TABLE IF NOT EXISTS picking(
     id SERIAL NOT NULL,
     worker_id INT NOT NULL,
     work_type work_type NOT NULL,

@@ -63,11 +63,14 @@ export default function (authService: AuthHandlers) {
 				acc[curr.name] = { ...BASE_WORK_TYPE_OBJECT };
 				return acc;
 			}, {} as WorkerToWorkTypeMapped);
-
 			for (const picking of parsedPickings) {
 				const { end_timestamp, start_timestamp, work_type, worker_id } = picking;
+				const worker = workers.find((worker) => worker.id === worker_id);
+				if (!worker) {
+					throw new Error(`Worker with id ${worker_id} not found`);
+				}
 				const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
-				usersMappedToWorkType[worker_id][work_type] += timeSpent;
+				usersMappedToWorkType[worker.name][work_type] += timeSpent;
 			}
 
 			res.json(usersMappedToWorkType);

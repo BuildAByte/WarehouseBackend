@@ -15,6 +15,31 @@ import {
 } from "../db/dbhandler.js";
 import { AuthHandlers, JwtDecoded } from "../middleware/auth.js";
 import { objectValidator } from "../utils.js";
+// map all the values in WorkType to a number
+const LIMITS = {
+	[WorkType.PICKING]: 10,
+	[WorkType.PACKING]: 5,
+	[WorkType.LABELLING]: 2,
+	[WorkType.RESTOCKING]: 1,
+	[WorkType.CHECKING]: 1,
+	[WorkType["LIQUID PRODUCTION"]]: 1,
+	[WorkType.PREPARATION]: 1,
+	[WorkType["SUB DIVISION"]]: 1,
+};
+
+const BASE_WORK_TYPE_OBJECT = {
+	[WorkType.PICKING]: 0,
+	[WorkType.PACKING]: 0,
+	[WorkType.LABELLING]: 0,
+	[WorkType.RESTOCKING]: 0,
+	[WorkType.CHECKING]: 0,
+	[WorkType["LIQUID PRODUCTION"]]: 0,
+	[WorkType.PREPARATION]: 0,
+	[WorkType["SUB DIVISION"]]: 0,
+};
+
+type WorkTypesToTimeSpent = Record<WorkType, number>;
+type WorkerToWorkTypeMapped = Record<string, WorkTypesToTimeSpent>;
 
 export default function (authService: AuthHandlers) {
 	const router = express.Router();
@@ -33,22 +58,19 @@ export default function (authService: AuthHandlers) {
 				};
 			});
 
-			const idToTimeSpent = parsedPickings.reduce((acc, curr) => {
-				if (acc[curr.worker_id]) {
-					acc[curr.worker_id] += curr.end_timestamp.getTime() - curr.start_timestamp.getTime();
-				} else {
-					acc[curr.worker_id] = curr.end_timestamp.getTime() - curr.start_timestamp.getTime();
-				}
-				return acc;
-			}, {} as { [key: number]: number });
 			const workers = await getWorkers();
-			const workersWithTime = workers.map((worker) => {
-				return {
-					...worker,
-					time: (idToTimeSpent[worker.id] / Milliseconds.HOUR).toFixed(2),
-				};
-			});
-			res.json(workersWithTime);
+			const usersMappedToWorkType: WorkerToWorkTypeMapped = workers.reduce((acc, curr) => {
+				acc[curr.name] = { ...BASE_WORK_TYPE_OBJECT };
+				return acc;
+			}, {} as WorkerToWorkTypeMapped);
+
+			for (const picking of parsedPickings) {
+				const { end_timestamp, start_timestamp, work_type, worker_id } = picking;
+				const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
+				usersMappedToWorkType[worker_id][work_type] += timeSpent;
+			}
+
+			res.json(usersMappedToWorkType);
 		} catch (error) {
 			if (error instanceof Error) {
 				res.status(500).json({ message: error.message });
@@ -96,23 +118,20 @@ export default function (authService: AuthHandlers) {
 	router.get("/work", authService.middleware, async (req, res) => {
 		try {
 			const pickings = await getActivePickings();
-			const work = pickings.reduce(
-				(acc, curr) => {
-					if (curr.work_type === WorkType.PICKING) {
-						acc.picking += 1;
-					} else if (curr.work_type === WorkType.PACKING) {
-						acc.packing += 1;
-					}
-					return acc;
-				},
-				{ picking: 0, packing: 0 },
-			);
+			const work = pickings.reduce((acc, curr) => {
+				if (acc[curr.work_type]) {
+					acc[curr.work_type] += 1;
+				} else {
+					acc[curr.work_type] = 0;
+				}
+				return acc;
+			}, {} as Record<WorkType, number>);
 			const workTypes: WorkType[] = [];
-			if (work.picking < 3) {
-				workTypes.push(WorkType.PICKING);
-			}
-			if (work.packing < 6) {
-				workTypes.push(WorkType.PACKING);
+			for (const workType in work) {
+				const index = workType as WorkType;
+				if (work[index] < LIMITS[index]) {
+					workTypes.push(workType as WorkType);
+				}
 			}
 			res.json(workTypes);
 		} catch (error) {

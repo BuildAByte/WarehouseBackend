@@ -18,7 +18,9 @@ CREATE TYPE work_type AS ENUM (
     'liquid production',
     'preparation',
     'checking',
-    'restocking'
+    'restocking',
+    'sub division'
+
 );
 
 CREATE TABLE picking(

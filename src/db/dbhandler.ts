@@ -22,6 +22,11 @@ export enum WorkType {
 	PICKING = "picking",
 	PACKING = "packing",
 	LABELLING = "labelling",
+	"LIQUID PRODUCTION" = "liquid production",
+	PREPARATION = "preparation",
+	CHECKING = "checking",
+	RESTOCKING = "restocking",
+	"SUB DIVISION" = "sub division",
 }
 
 interface Picking {
@@ -40,7 +45,7 @@ export interface PickingParsed {
 	end_timestamp: Date;
 }
 
-export async function init() {
+export async function initTables() {
 	const client = await connection.connect();
 	const sql = readFileSync(path.resolve("tables.sql")).toString("utf-8");
 	await client.query(sql);

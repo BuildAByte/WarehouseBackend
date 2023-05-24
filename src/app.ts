@@ -2,7 +2,7 @@ import { default as express } from "express";
 import Picking from "./routes/picking.js";
 import Worker from "./routes/worker.js";
 import { AuthService } from "./middleware/auth.js";
-import { createWorker, init } from "./db/dbhandler.js";
+import { createWorker, initTables } from "./db/dbhandler.js";
 import cors from "cors";
 
 // Create a new express application instance
@@ -17,17 +17,17 @@ app.use(cors());
 const picking = Picking(authService);
 const worker = Worker(authService);
 
+async function insertAdminUser() {
+	await createWorker(`SuperSecret!`, `Admin`, true);
+}
+
 async function initDb() {
-	await init();
+	await initTables();
+	await insertAdminUser();
 	console.log("Database initialized");
 }
 
-async function insertAdminUser() {
-	console.log(await createWorker(`SuperSecret!`, `Admin`, true));
-}
-
 await initDb();
-await insertAdminUser();
 
 app.use("/picking", picking);
 app.use("/worker", worker);

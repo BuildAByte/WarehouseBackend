@@ -4,7 +4,6 @@ import {
 	createPicking,
 	deletePicking,
 	getActivePickings,
-	getLatestPicking,
 	getPickings,
 	getActivePickingForUser,
 	updatePicking,
@@ -49,15 +48,29 @@ export default function (authService: AuthHandlers) {
 		try {
 			const pickings = await getAllPickings();
 			const workers = await getWorkers();
-			const csv = pickings.map((picking) => {
-				const worker = workers.find((worker) => worker.id === picking.worker_id);
-				if (!worker) throw new Error("Worker not found");
-				const { id, work_type, start_timestamp, end_timestamp } = picking;
-				const { name } = worker;
-				return `${id},${name},${work_type},${start_timestamp},${end_timestamp}`;
+			const csv: string[] = [];
+			const titles = ["worker_id", "worker_name", "work_type", "hours_spent"];
+			csv.push(titles.join(","));
+			const pickingsParsed = pickings.map((picking) => {
+				return {
+					...picking,
+					end_timestamp: new Date(picking.end_timestamp ?? picking.start_timestamp),
+					start_timestamp: new Date(picking.start_timestamp),
+				};
 			});
+
+			for (const picking of pickingsParsed) {
+				const { worker_id, work_type, end_timestamp, start_timestamp } = picking;
+				const worker = workers.find((worker) => worker.id === worker_id);
+				if (!worker) {
+					throw new Error(`Worker with id ${worker_id} not found`);
+				}
+				const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
+				const row = [worker_id, worker.name, work_type, parseFloat(timeSpent.toFixed(1))];
+				csv.push(row.join(","));
+			}
+
 			// insert the titles at the start of csv
-			csv.unshift("id,name,work_type,start_timestamp,end_timestamp");
 			res.setHeader("Content-Type", "text/csv");
 			res.attachment("pickings.csv");
 			res.send(csv.join("\n"));

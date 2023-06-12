@@ -103,11 +103,10 @@ export default function (authService: AuthHandlers) {
 			for (const picking of parsedPickings) {
 				const { end_timestamp, start_timestamp, work_type, worker_id } = picking;
 				const worker = workers.find((worker) => worker.id === worker_id);
-				if (!worker) {
-					throw new Error(`Worker with id ${worker_id} not found`);
+				if (worker) {
+					const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
+					usersMappedToWorkType[worker.name][work_type] += parseFloat(timeSpent.toFixed(1));
 				}
-				const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
-				usersMappedToWorkType[worker.name][work_type] += parseFloat(timeSpent.toFixed(1));
 			}
 
 			res.json(usersMappedToWorkType);

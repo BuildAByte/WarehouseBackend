@@ -43,6 +43,8 @@ export interface PickingParsed {
 	id: number;
 	worker_id: number;
 	work_type: WorkType;
+	subtask: string;
+	subtask_quantity: number;
 	start_timestamp: Date;
 	end_timestamp: Date;
 }

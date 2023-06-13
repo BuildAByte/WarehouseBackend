@@ -83,7 +83,7 @@ export default function (authService: AuthHandlers) {
 				if (worker) {
 					const { name } = worker;
 					const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
-					const row = [name, work_type, parseFloat(timeSpent.toFixed(1)), subtask, subtask_quantity];
+					const row = [name, work_type, parseFloat(timeSpent.toFixed(2)), subtask, subtask_quantity];
 					csv.push(row.join(","));
 				}
 			}
@@ -117,6 +117,58 @@ export default function (authService: AuthHandlers) {
 				default:
 					res.json([]);
 			}
+		} catch (error) {
+			console.error(error);
+			const { message } = error as { message: string };
+			res.status(500).json({ error: message });
+		}
+	});
+
+	// subtasks/time
+	// get all the subtasks and the time spent on them
+	router.get("/subtasks/csv", authService.adminMiddleware, async (req, res) => {
+		try {
+			const pickings = await getAllPickings();
+			// parse end_timestamp and start_timestamp into dates
+
+			const parsedPickings: Array<PickingParsed> = pickings.map((picking) => {
+				return {
+					...picking,
+					end_timestamp: new Date(picking.end_timestamp ?? picking.start_timestamp),
+					start_timestamp: new Date(picking.start_timestamp),
+				};
+			});
+
+			const csv: string[] = [];
+
+			const titles = ["subtask", "subtask_quantity", "hours_spent"];
+
+			csv.push(titles.join(","));
+
+			const subtasks: Record<string, Array<number>> = {};
+
+			for (const picking of parsedPickings) {
+				const { subtask, subtask_quantity, end_timestamp, start_timestamp } = picking;
+				const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
+				if (!subtask) continue;
+				if (subtasks[subtask]) {
+					subtasks[subtask][0] += subtask_quantity;
+					subtasks[subtask][1] += timeSpent;
+				}
+				if (!subtasks[subtask]) {
+					subtasks[subtask] = [subtask_quantity, timeSpent];
+				}
+			}
+
+			for (const subtask in subtasks) {
+				const [subtask_quantity, timeSpent] = subtasks[subtask];
+				const row = [subtask, subtask_quantity, parseFloat(timeSpent.toFixed(2))];
+				csv.push(row.join(","));
+			}
+
+			res.setHeader("Content-Type", "text/csv");
+			res.attachment("subtasks.csv");
+			res.send(csv.join("\n"));
 		} catch (error) {
 			console.error(error);
 			const { message } = error as { message: string };

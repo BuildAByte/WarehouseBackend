@@ -37,6 +37,24 @@ const BASE_WORK_TYPE_OBJECT = {
 	[WorkType["SUB DIVISION"]]: 0,
 };
 
+const labellingSubTasks = [
+	"Konjac",
+	"molassa",
+	"1 sticker",
+	"print labels",
+	"2 labels",
+	"agave",
+	"Green Mama",
+	"Bombus",
+	"Trucs",
+	"Olives",
+	"Printing Date",
+];
+
+const liquidProductionSubTasks = ["agave", "molassa", "tahini", "mealtime"];
+
+const subDivisionSubTasks = ["flour", "spores", "Soda", "G/L products"];
+
 type WorkTypesToTimeSpent = Record<WorkType, number>;
 type WorkerToWorkTypeMapped = Record<string, WorkTypesToTimeSpent>;
 
@@ -49,7 +67,7 @@ export default function (authService: AuthHandlers) {
 			const pickings = await getAllPickings();
 			const workers = await getWorkers();
 			const csv: string[] = [];
-			const titles = ["worker_id", "worker_name", "work_type", "hours_spent"];
+			const titles = ["worker_name", "work_type", "hours_spent", "subtask", "subtask_quantity"];
 			csv.push(titles.join(","));
 			const pickingsParsed = pickings.map((picking) => {
 				return {
@@ -60,22 +78,49 @@ export default function (authService: AuthHandlers) {
 			});
 
 			for (const picking of pickingsParsed) {
-				const { worker_id, work_type, end_timestamp, start_timestamp } = picking;
+				const { worker_id, work_type, end_timestamp, start_timestamp, subtask, subtask_quantity } = picking;
 				const worker = workers.find((worker) => worker.id === worker_id);
-				if (!worker) {
-					throw new Error(`Worker with id ${worker_id} not found`);
+				if (worker) {
+					const { name } = worker;
+					const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
+					const row = [name, work_type, parseFloat(timeSpent.toFixed(1)), subtask, subtask_quantity];
+					csv.push(row.join(","));
 				}
-				const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
-				const row = [worker_id, worker.name, work_type, parseFloat(timeSpent.toFixed(1))];
-				csv.push(row.join(","));
 			}
 
 			// insert the titles at the start of csv
 			res.setHeader("Content-Type", "text/csv");
-			res.attachment("pickings.csv");
+			res.attachment("work.csv");
 			res.send(csv.join("\n"));
 		} catch (error) {
 			console.error(error);
+		}
+	});
+
+	// create a route that returns the right sub tasks for a work type
+	router.get("/subtasks/:workType", authService.middleware, async (req, res) => {
+		try {
+			const { workType } = req.params as { workType: WorkType };
+			if (!workType) {
+				throw new Error("workType is required");
+			}
+			switch (workType) {
+				case WorkType.LABELLING:
+					res.json(labellingSubTasks);
+					break;
+				case WorkType["LIQUID PRODUCTION"]:
+					res.json(liquidProductionSubTasks);
+					break;
+				case WorkType["SUB DIVISION"]:
+					res.json(subDivisionSubTasks);
+					break;
+				default:
+					res.json([]);
+			}
+		} catch (error) {
+			console.error(error);
+			const { message } = error as { message: string };
+			res.status(500).json({ error: message });
 		}
 	});
 
@@ -210,7 +255,11 @@ export default function (authService: AuthHandlers) {
 	router.post("/", authService.middleware, async (req, res) => {
 		try {
 			const userId = (req.body as { decoded: JwtDecoded }).decoded.id;
-			const { workType } = req.body as { workerId: number; workType: WorkType };
+			const { workType, itemName, quanity } = req.body as {
+				workType: WorkType;
+				itemName: string;
+				quanity: number;
+			};
 			objectValidator({ workType });
 			const picking = await createPicking(userId, workType);
 			res.json(picking);
@@ -224,8 +273,13 @@ export default function (authService: AuthHandlers) {
 	// PUT /picking/:id
 	router.put("/:id", authService.middleware, async (req, res) => {
 		try {
+			const { subtask, subtaskQuantity } = req.body as {
+				decoded: JwtDecoded;
+				subtask: string;
+				subtaskQuantity: number;
+			};
 			const id = parseInt(req.params.id);
-			const picking = await updatePicking(id, new Date());
+			const picking = await updatePicking(id, new Date(), subtask, subtaskQuantity);
 			res.json(picking);
 		} catch (error) {
 			if (error instanceof Error) {

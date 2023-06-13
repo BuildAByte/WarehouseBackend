@@ -33,6 +33,8 @@ interface Picking {
 	id: number;
 	worker_id: number;
 	work_type: WorkType;
+	subtask: string;
+	subtask_quantity: number;
 	start_timestamp: string;
 	end_timestamp: string;
 }
@@ -164,12 +166,17 @@ export async function createPicking(worker_id: number, work_type: WorkType): Pro
 	return result.rows[0] as Picking;
 }
 
-export async function updatePicking(id: number, endTimestamp: Date): Promise<Picking> {
+export async function updatePicking(
+	id: number,
+	endTimestamp: Date,
+	subtask?: string,
+	subtaskQuantity?: number,
+): Promise<Picking> {
 	const client = await connection.connect();
-	const result = await client.query("UPDATE picking SET end_timestamp = $2 WHERE id = $1 RETURNING *", [
-		id,
-		endTimestamp.toISOString(),
-	]);
+	const result = await client.query(
+		`UPDATE picking SET end_timestamp = $1, subtask = $2, subtask_quantity = $3 WHERE id = $4 RETURNING *`,
+		[endTimestamp, subtask, subtaskQuantity, id],
+	);
 	client.release();
 	return result.rows[0] as Picking;
 }
@@ -188,13 +195,18 @@ export async function getPickings(id: number): Promise<Picking[]> {
 	return result.rows as Picking[];
 }
 
-export async function getAllPickings(fromDate = new Date(Date.now() - Milliseconds.MONTH)): Promise<Picking[]> {
+export async function getAllPickings(
+	fromDate = new Date(Date.now() - Milliseconds.MONTH),
+): Promise<Array<Picking & { worker_name: string }>> {
 	const client = await connection.connect();
-	const result = await client.query("SELECT * FROM picking WHERE start_timestamp > $1 ORDER BY id DESC", [
-		fromDate.toISOString(),
-	]);
+	// inner join with workers table to get the name of the worker
+	const result = await client.query(
+		"SELECT picking.*, workers.name as worker_name FROM picking INNER JOIN workers ON picking.worker_id = workers.id WHERE start_timestamp > $1 ORDER BY id DESC",
+		[fromDate.toISOString()],
+	);
+
 	client.release();
-	return result.rows as Picking[];
+	return result.rows;
 }
 
 type Nullable<T> = {

@@ -21,7 +21,7 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
-CREATE TABLE picking(
+CREATE TABLE IF NOT EXISTS picking(
     id SERIAL NOT NULL,
     worker_id INT NOT NULL,
     work_type work_type NOT NULL,

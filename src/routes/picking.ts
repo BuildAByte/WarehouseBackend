@@ -126,7 +126,7 @@ export default function (authService: AuthHandlers) {
 
 	// subtasks/time
 	// get all the subtasks and the time spent on them
-	router.get("/subtasks/csv", authService.adminMiddleware, async (req, res) => {
+	router.get("/subtasks_csv", authService.adminMiddleware, async (req, res) => {
 		try {
 			const pickings = await getAllPickings();
 			// parse end_timestamp and start_timestamp into dates
@@ -151,6 +151,7 @@ export default function (authService: AuthHandlers) {
 				const { subtask, subtask_quantity, end_timestamp, start_timestamp } = picking;
 				const timeSpent = (end_timestamp.getTime() - start_timestamp.getTime()) / Milliseconds.HOUR;
 				if (!subtask) continue;
+
 				if (subtasks[subtask]) {
 					subtasks[subtask][0] += subtask_quantity;
 					subtasks[subtask][1] += timeSpent;
@@ -159,7 +160,6 @@ export default function (authService: AuthHandlers) {
 					subtasks[subtask] = [subtask_quantity, timeSpent];
 				}
 			}
-
 			for (const subtask in subtasks) {
 				const [subtask_quantity, timeSpent] = subtasks[subtask];
 				const row = [subtask, subtask_quantity, parseFloat(timeSpent.toFixed(2))];

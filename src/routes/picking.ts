@@ -62,9 +62,13 @@ export default function (authService: AuthHandlers) {
 	const router = express.Router();
 
 	// create a route that returns a csv file of all the pickings
-	router.get("/csv", authService.adminMiddleware, async (req, res) => {
+	router.get("/csv/:startTimestamp/:endTimestamp", authService.adminMiddleware, async (req, res) => {
 		try {
-			const pickings = await getAllPickings();
+			const { startTimestamp, endTimestamp } = req.params;
+			if (!startTimestamp || !endTimestamp) {
+				throw new Error("start_timestamp and end_timestamp are required");
+			}
+			const pickings = await getAllPickings(new Date(startTimestamp), new Date(endTimestamp));
 			const workers = await getWorkers();
 			const csv: string[] = [];
 			const titles = ["worker_name", "work_type", "hours_spent", "subtask", "subtask_quantity"];
@@ -126,9 +130,13 @@ export default function (authService: AuthHandlers) {
 
 	// subtasks/time
 	// get all the subtasks and the time spent on them
-	router.get("/subtasks_csv", authService.adminMiddleware, async (req, res) => {
+	router.get("/subtasks_csv/:startTimestamp/:endTimestamp", authService.adminMiddleware, async (req, res) => {
 		try {
-			const pickings = await getAllPickings();
+			const { startTimestamp, endTimestamp } = req.params;
+			if (!startTimestamp || !endTimestamp) {
+				throw new Error("start_timestamp and end_timestamp are required");
+			}
+			const pickings = await getAllPickings(new Date(startTimestamp), new Date(endTimestamp));
 			// parse end_timestamp and start_timestamp into dates
 
 			const parsedPickings: Array<PickingParsed> = pickings.map((picking) => {
@@ -177,10 +185,14 @@ export default function (authService: AuthHandlers) {
 	});
 
 	// calculate how much time each worker has worked based on the pickings
-	router.get("/time", authService.adminMiddleware, async (req, res) => {
+	router.get("/time/:startTimestamp/:endTimestamp", authService.adminMiddleware, async (req, res) => {
 		try {
-			const pickings = await getAllPickings();
-			// parse end_timestamp and start_timestamp into dates
+			const { startTimestamp, endTimestamp } = req.params as { startTimestamp: string; endTimestamp: string };
+
+			if (!startTimestamp || !endTimestamp) {
+				throw new Error("startTime and endTime are required");
+			}
+			const pickings = await getAllPickings(new Date(startTimestamp), new Date(endTimestamp));
 
 			const parsedPickings: Array<PickingParsed> = pickings.map((picking) => {
 				return {

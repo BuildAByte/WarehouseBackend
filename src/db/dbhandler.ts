@@ -199,12 +199,20 @@ export async function getPickings(id: number): Promise<Picking[]> {
 
 export async function getAllPickings(
 	fromDate = new Date(Date.now() - Milliseconds.MONTH),
+	endDate = new Date(),
 ): Promise<Array<Picking & { worker_name: string }>> {
 	const client = await connection.connect();
 	// inner join with workers table to get the name of the worker
 	const result = await client.query(
-		"SELECT picking.*, workers.name as worker_name FROM picking INNER JOIN workers ON picking.worker_id = workers.id WHERE start_timestamp > $1 ORDER BY id DESC",
-		[fromDate.toISOString()],
+		`SELECT 
+			picking.*, workers.name as worker_name 
+		FROM 
+			picking 
+		INNER JOIN 
+			workers ON picking.worker_id = workers.id 
+		WHERE start_timestamp > $1 AND start_timestamp < $2 
+		ORDER BY id DESC`,
+		[fromDate.toISOString(), endDate.toISOString()],
 	);
 
 	client.release();

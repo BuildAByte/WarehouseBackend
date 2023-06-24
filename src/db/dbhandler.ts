@@ -10,9 +10,19 @@ export enum Milliseconds {
 	DAY = 24 * HOUR,
 	MONTH = 30 * DAY,
 }
-
+export interface DataReport {
+	id: number;
+	date: Date;
+	orders: number;
+	orderlines: number;
+	units: number;
+	timeSpent: number;
+	orderLinesPerHour: number;
+	unitsPerOrderLine: number;
+}
 interface Worker {
 	id: number;
+	soft_one_id: string;
 	password?: string;
 	name: string;
 	admin: boolean;
@@ -75,6 +85,15 @@ export async function getWorkers(): Promise<Worker[]> {
 	});
 }
 
+export async function getWorkerBySoftOneId(softOneId: number): Promise<Worker | undefined> {
+	const client = await connection.connect();
+	const result = await client.query("SELECT * FROM workers WHERE soft_one_id = $1", [softOneId]);
+	client.release();
+	const worker = result.rows[0] as Worker;
+	delete worker.password;
+	return worker;
+}
+
 // create a function that gets all the pickings where end_timestamp is null called getActivePickings
 export async function getActivePickings(): Promise<Picking[]> {
 	const client = await connection.connect();
@@ -120,14 +139,18 @@ export async function login(name: string, password: string): Promise<Worker> {
 }
 
 // create a new worker with a hashed password with a secret and return the worker with the generated id
-export async function createWorker(password: string, name: string, isAdmin = false): Promise<Worker> {
+export async function createWorker(
+	softOneId: number,
+	password: string,
+	name: string,
+	isAdmin = false,
+): Promise<Worker> {
 	const client = await connection.connect();
 	const hash = await generatePassword(password);
-	const result = await client.query("INSERT INTO workers (name, password, admin) VALUES ($1, $2, $3) RETURNING *", [
-		name,
-		hash,
-		isAdmin,
-	]);
+	const result = await client.query(
+		"INSERT INTO workers (soft_one_id, name, password, admin) VALUES ($1, $2, $3, $4) RETURNING *",
+		[softOneId, name, hash, isAdmin],
+	);
 	client.release();
 	const worker = result.rows[0] as Worker;
 	delete worker.password;
@@ -217,6 +240,43 @@ export async function getAllPickings(
 
 	client.release();
 	return result.rows;
+}
+
+export async function getPickingsWithSubtask(
+	fromDate = new Date(Date.now() - Milliseconds.MONTH),
+	endDate = new Date(),
+): Promise<Array<Picking & { worker_name: string }>> {
+	const client = await connection.connect();
+	// inner join with workers table to get the name of the worker
+	const result = await client.query(
+		`SELECT 
+			picking.*, workers.name as worker_name 
+		FROM 
+			picking 
+		INNER JOIN 
+			workers ON picking.worker_id = workers.id 
+		WHERE start_timestamp > $1 AND start_timestamp < $2 AND subtask IS NOT NULL 
+		ORDER BY id DESC`,
+		[fromDate.toISOString(), endDate.toISOString()],
+	);
+
+	client.release();
+	return result.rows;
+}
+
+export async function insertDataReports(reports: DataReport[]): Promise<void> {
+	const client = await connection.connect();
+	const data = reports.map(
+		({ id, date, orders, orderlines, units, timeSpent, orderLinesPerHour, unitsPerOrderLine }) =>
+			`(${id}, ${date.toISOString()}, ${orders}, ${orderlines}, ${units}, ${timeSpent}, ${orderLinesPerHour}, ${unitsPerOrderLine})`,
+	);
+
+	const query = `INSERT INTO data_reports (worker_id, created, orders, order_lines, units, time_spent, order_lines_per_hour, units_per_order_line) VALUES${data.join(
+		",",
+	)}`;
+	console.log(query);
+	await client.query(query);
+	client.release();
 }
 
 type Nullable<T> = {

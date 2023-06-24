@@ -63,9 +63,9 @@ export default function (authService: AuthHandlers) {
 	// POST /worker
 	router.post("/", authService.adminMiddleware, async (req, res) => {
 		try {
-			const { password, name } = req.body as { password: string; name: string };
-			objectValidator({ password, name });
-			const worker = await createWorker(password, name);
+			const { softOneId, password, name } = req.body as { softOneId: number; password: string; name: string };
+			objectValidator({ softOneId, password, name });
+			const worker = await createWorker(softOneId, password, name);
 			res.json(worker);
 		} catch (error) {
 			if (error instanceof Error) {

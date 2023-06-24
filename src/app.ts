@@ -11,14 +11,14 @@ const app: express.Application = express();
 const SECRET = process.env.ENCRYPTION_KEY ?? "BingoMachine!12345!";
 const authService = new AuthService(SECRET);
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 app.use(cors());
 
 const picking = Picking(authService);
 const worker = Worker(authService);
 
 async function insertAdminUser() {
-	await createWorker(`SuperSecret!`, `Admin`, true);
+	await createWorker(0, `SuperSecret!`, `Admin`, true);
 }
 
 async function initDb() {

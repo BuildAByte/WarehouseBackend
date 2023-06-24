@@ -11,6 +11,9 @@ import {
 	PickingParsed,
 	getWorkers,
 	Milliseconds,
+	getPickingsWithSubtask,
+	DataReport,
+	insertDataReports,
 } from "../db/dbhandler.js";
 import { AuthHandlers, JwtDecoded } from "../middleware/auth.js";
 import { objectValidator } from "../utils.js";
@@ -61,6 +64,71 @@ type WorkerToWorkTypeMapped = Record<string, WorkTypesToTimeSpent>;
 export default function (authService: AuthHandlers) {
 	const router = express.Router();
 
+	router.post("/upload", authService.adminMiddleware, async (req, res) => {
+		const { json } = req.body as { json: Array<Array<string>> };
+		console.log(json);
+		json.splice(0, 1);
+		const workerIds = json.map((row) => parseInt(row[1]));
+		const workers = await getWorkers();
+		const uniqueWorkerIds = [...new Set(workerIds)];
+		const uniqueWorkers = workers.filter((w) => uniqueWorkerIds.includes(parseInt(w.soft_one_id)));
+		const pickingCache: Record<number, PickingParsed[]> = {};
+		for (const { id } of uniqueWorkers) {
+			const work = await getPickings(id);
+			const parsed = work.map((w) => {
+				return {
+					...w,
+					end_timestamp: new Date(w.end_timestamp ?? w.start_timestamp),
+					start_timestamp: new Date(w.start_timestamp),
+				};
+			});
+			pickingCache[id] = parsed;
+		}
+		const dataArray: DataReport[] = [];
+		for (const [_, id, date, orders, orderlines, units] of json) {
+			const parsedId = parseInt(id);
+			const parsedDate = new Date(date);
+			const parsedOrders = parseInt(orders);
+			const parsedOrderlines = parseInt(orderlines);
+			const parsedUnits = parseInt(units);
+			const worker = uniqueWorkers.find((w) => parseInt(w.soft_one_id) === parsedId);
+
+			if (worker) {
+				const pickingsAtDate = pickingCache[worker.id].filter((p) => {
+					const { start_timestamp } = p;
+					return (
+						start_timestamp.getFullYear() === parsedDate.getFullYear() &&
+						start_timestamp.getMonth() === parsedDate.getMonth() &&
+						start_timestamp.getDate() === parsedDate.getDate()
+					);
+				});
+				const workTimeSpentForPicking = pickingsAtDate.reduce((acc, curr) => {
+					const { work_type, end_timestamp, start_timestamp } = curr;
+					const timeSpent =
+						((end_timestamp?.getTime() ?? start_timestamp.getTime) - start_timestamp.getTime()) /
+						Milliseconds.HOUR;
+					acc[work_type] += timeSpent;
+					return acc;
+				}, BASE_WORK_TYPE_OBJECT);
+				const orderLinesPerHour = parsedOrderlines / workTimeSpentForPicking[WorkType.PICKING];
+				const unitsPerOrderLine = parsedOrderlines / parsedUnits;
+				dataArray.push({
+					id: worker.id,
+					date: parsedDate,
+					orders: parsedOrders,
+					orderlines: parsedOrderlines,
+					units: parsedUnits,
+					timeSpent: workTimeSpentForPicking[WorkType.PICKING],
+					orderLinesPerHour,
+					unitsPerOrderLine,
+				});
+			}
+		}
+
+		await insertDataReports(dataArray);
+		res.json({ success: true });
+	});
+
 	// create a route that returns a csv file of all the pickings
 	router.get("/csv/:startTimestamp/:endTimestamp", authService.adminMiddleware, async (req, res) => {
 		try {
@@ -96,6 +164,19 @@ export default function (authService: AuthHandlers) {
 			res.setHeader("Content-Type", "text/csv");
 			res.attachment("work.csv");
 			res.send(csv.join("\n"));
+		} catch (error) {
+			console.error(error);
+		}
+	});
+
+	router.get("/subtask_report", authService.adminMiddleware, async (req, res) => {
+		try {
+			const { startTimestamp, endTimestamp } = req.query as { startTimestamp: string; endTimestamp: string };
+			if (!startTimestamp || !endTimestamp) {
+				throw new Error("start_timestamp and end_timestamp are required");
+			}
+			const pickings = await getPickingsWithSubtask(new Date(startTimestamp), new Date(endTimestamp));
+			res.json(pickings);
 		} catch (error) {
 			console.error(error);
 		}
